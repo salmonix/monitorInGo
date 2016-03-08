@@ -1,0 +1,3 @@
+{
+  "scanIntervalSec" : 10
+}
