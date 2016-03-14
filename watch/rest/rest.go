@@ -3,7 +3,7 @@ package rest
 import (
 	"fmt"
 	"gmon/watch"
-	"gmon/watch/process"
+	c "gmon/watch/config"
 	"net/http"
 	"strconv"
 
@@ -11,35 +11,41 @@ import (
 )
 
 // GetRouter implements the REST interface to add, remove a query processes.
-// POST: /process/:name?pid=int
-//    add a new process to the process list. The process must be identified by PID
-//    at later calls. If the process is already exist, nothing happens
-// GET: /process/:pid
-//    Get the metrics of the process
-// DELETE: /process/:pid
-//    Delete the process.
-// GET: /process
-//    Return a [process] list with the process data.
-// TODO: cat /proc/sys/kernel/pid_max returns the max of PID. we should add it to ParseInt
-func GetRouter(w *watch.WatchingContainer) *gin.Engine {
+// For details see the Wiki ( https://bitbucket.org/monitoringo/monitoringo/wiki/Monitoring )
+func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 
 	router := gin.Default()
-	router.GET("/process/:id", func(c *gin.Context) {
+	router.LoadHTMLGlob("watch/templates/index.html")
+
+	router.GET("/monitoring", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"title": "Monitoring WebUI",
+		})
+	})
+
+	router.GET("/config", func(c *gin.Context) {
+		c.JSON(http.StatusOK, conf)
+	})
+
+	router.GET("/process/*id", func(c *gin.Context) {
 		pid := parseInt(c.Param("id"), c)
-		proc, _ := w.Get(process.Pid(pid))
+		proc, _ := w.Get(pid)
 		c.JSON(http.StatusOK, proc)
 	})
 
 	router.POST("/process/:id", func(c *gin.Context) {
 		pid := parseInt(c.Param("id"), c)
-		c.JSON(http.StatusOK, w.Add(process.Pid(pid)))
+		c.JSON(http.StatusOK, w.Add(pid))
 	})
 
 	return router
 }
 
 func parseInt(s string, c *gin.Context) int {
-	if i, err := strconv.ParseInt(c.Param("name"), 10, 32); err == nil {
+	if s == "/" {
+		return -1
+	}
+	if i, err := strconv.ParseInt(c.Param("id"), 10, 32); err == nil {
 		fmt.Printf("%T, %v\n", s, s)
 		return int(i)
 	}

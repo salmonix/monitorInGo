@@ -20,7 +20,7 @@ func main() {
 func register(p *process.WatchedProcess) {
 	body, _ := json.Marshal(p)
 	toPost := bytes.NewBuffer(body)
-	url := "http://localhost:8080"
+	url := "http://localhost:8080/process" // TODO: do proper url
 	mime := "text/json"
 	resp, _ := http.Post(url, mime, toPost)
 	fmt.Println(resp)
