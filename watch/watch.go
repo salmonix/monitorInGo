@@ -68,29 +68,37 @@ func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 // Refresh re-reads the ps table and refreshes the process data
 func (w *WatchingContainer) Refresh() error {
 
-	psTable, err := exec.Command("ps", "-aux").Output()
+	fields := 9
+	//                     0  1    2   3    4    5   6    7    8
+	commandString := "-eo cmd,pcpu,pid,ppid,size,rss,vsize,uid,utime"
+	psTable, err := exec.Command("ps", commandString).Output() // check fields when it changes
 	if err != nil {
 		return err
 	}
 
-	// ps aux output is USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
-	// this is a conversion, and may be an interface if different types are used
-	psPositions := []int{1, 3, 4, 5} // NOTE: pos 10 will be the cmdline
+	// what about the - in the ps output?
 	for _, r := range strings.Split(string(psTable), "\n") {
 		psRow := strings.Fields(r)
-		prDat := make([]float64, 5)
 
-		if proc, ok := w.processes[int(prDat[0])]; ok == true {
+		rowPid, _ := strconv.ParseInt(psRow[3], 10, 64) // not the best error handling ever
+		if proc, ok := w.processes[int(rowPid)]; ok == true {
 
-			for c, psDat := range psPositions {
-				psVal, _ := strconv.ParseFloat(psRow[psDat], 64) // XXX can it be other than number?
-				prDat[c] = psVal
+			asFloat := make([]float64, fields-2)
+			for c := 2; c < fields; c++ {
+				psVal, _ := strconv.ParseFloat(psRow[2], 64) // XXX can it be other than number?
+				asFloat[c] = psVal
 			}
 
 			newStatus := process.NewWatchedProcess(proc.Pid, proc.Ppid)
-			newStatus.Mem = prDat[1]
-			newStatus.Vss = prDat[2]
-			newStatus.Rss = prDat[3]
+			newStatus.Cmd = psRow[0]
+			cpu, _ := strconv.ParseFloat(psRow[1], 32)
+			newStatus.CPU = cpu
+			newStatus.Mem = asFloat[4]
+			newStatus.Rss = asFloat[5]
+			newStatus.Vss = asFloat[6]
+			newStatus.UID = int(asFloat[7])
+			newStatus.Utime = int(asFloat[8])
+
 			w.processes[proc.Pid] = proc.Update(newStatus, w.treshold)
 		}
 	}

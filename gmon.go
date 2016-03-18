@@ -5,6 +5,7 @@ import (
 	c "gmon/watch/config"
 	"gmon/watch/rest"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -14,7 +15,7 @@ func main() {
 	conf := c.ReadConfig()
 	watcher := startPolling(conf)
 	router := rest.GetRouter(watcher, &conf)
-	router.Run(":8080")
+	router.Run(":" + strconv.Itoa(conf.Port))
 }
 
 // StartPolling starts the polling loop

@@ -2,33 +2,38 @@ package process
 
 import (
 	"fmt"
+	"gmon/conversions"
 	"io/ioutil"
 	"math"
-	"strconv"
 	"strings"
 )
 
 // WatchedProcess contains the process metrics and the PID of the process
 type WatchedProcess struct {
-	Mem  float64
-	Vss  float64
-	Rss  float64
-	Pid  int
-	Ppid int
+	Cmd      string
+	CPU      float64
+	Pid      int
+	Ppid     int
+	Mem      float64
+	Vss      float64
+	VssMb    float32
+	Rss      float64
+	RssMb    float32
+	UID      int
+	Utime    int
+	Checked  int
+	Children []int
 }
 
 // GetPPID returns the parent process ID for the process identified with its PID
 // or 0, err if is does not exists
 // XXX: we do not check for cases when no ppid exists
 func GetPPID(p int) (int, error) {
-	statPath := fmt.Sprintf("/proc/%d/statm", p)
-	dataBytes, err := ioutil.ReadFile(statPath)
+	stat, err := readStatm(p)
 	if err != nil {
-		return p, err
+		return -1, err
 	}
-
-	stat := strings.Fields(string(dataBytes))
-	ppid, _ := strconv.ParseInt(stat[3], 10, 64)
+	ppid := stat[3]
 	return int(ppid), nil
 }
 
@@ -58,4 +63,14 @@ func overTreshold(x, y, tr float64) bool {
 		return true
 	}
 	return false
+}
+
+func readStatm(p int) ([]int, error) {
+	statPath := fmt.Sprintf("/proc/%d/statm", p)
+	dataBytes, err := ioutil.ReadFile(statPath)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := conversions.StringsToInt(strings.Fields(string(dataBytes)))
+	return stat, err
 }

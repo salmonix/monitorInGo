@@ -13,6 +13,7 @@ import (
 type Config struct {
 	ScanIntervalSec   int
 	ChangeTesholdPerc float64
+	Port              int
 	// Overseer []string
 }
 
@@ -41,6 +42,5 @@ func ReadConfig() Config {
 		conf.ScanIntervalSec = 15
 	}
 
-	fmt.Println(json.Marshal(conf))
 	return conf
 }

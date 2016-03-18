@@ -1,3 +1,4 @@
 {
-  "scanIntervalSec" : 10
+  "scanIntervalSec" : 10,
+  "port" : 8080
 }
