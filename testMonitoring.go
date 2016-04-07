@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"gmon/watch/config"
 	"gmon/watch/process"
+	test "gmon/wathc/rest/ifacetest"
 	"math"
 	"net/http"
 	"os"
@@ -13,14 +16,42 @@ import (
 )
 
 func main() {
-	register(process.NewWatchedProcess(os.Getpid(), 0))
-	enterLoop()
+	cl := cli()
+	c := config.GetConfig()
+	if cl.testREST {
+		doRESTTest(c)
+	}
+	if cl.runAsConsumer {
+		register(process.NewWatchedProcess(os.Getpid(), 0), &c)
+		enterLoop()
+	}
+
 }
 
-func register(p *process.WatchedProcess) {
+type commandLine struct {
+	testREST      bool
+	runAsConsumer bool
+	fork          int
+}
+
+func cli() commandLine {
+	var cl commandLine
+	testREST := flag.Bool("rest", false, "Test the REST API")
+	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a patters")
+	fork := flag.Int("fork", 0, "Fork n children")
+	flag.Parse()
+	return commandLine{*testREST, *runAsConsumer, *fork}
+}
+
+func doRESTTest(c *config.Configuration) {
+	test.Configuration(c)
+}
+
+func register(p *process.WatchedProcess, c *config.Config) {
 	body, _ := json.Marshal(p)
 	toPost := bytes.NewBuffer(body)
-	url := "http://localhost:8080/process" // TODO: do proper url
+	port := strconv.Itoa(c.Port)
+	url := "http://localhost:" + port + "/process" // TODO: do proper url
 	mime := "text/json"
 	resp, _ := http.Post(url, mime, toPost)
 	fmt.Println(resp)

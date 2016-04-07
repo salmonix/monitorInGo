@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Config the configuration struct
+// Config the configuration struct that is initialized at first call of GetConfig
 type Config struct {
 	ScanIntervalSec   int
 	ChangeTesholdPerc float64
@@ -23,8 +23,16 @@ type Config struct {
 	// Overseer []string
 }
 
-// ReadConfig reads the json config file and adds the standard values
-func ReadConfig() Config {
+var conf Config
+
+// GetConfig initializes the conf variable reading the JSON config file or
+// returning an already existing conf global.
+func GetConfig() Config {
+
+	if conf.Pid > 1 {
+		return conf
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(fmt.Sprintf("Cannot get `pwd`: %s", err))
@@ -37,12 +45,13 @@ func ReadConfig() Config {
 		panic(fmt.Errorf("Cannot read config file: %s", err))
 	}
 
-	var conf Config
 	if err := json.Unmarshal(cfgData, &conf); err != nil {
 		panic(err)
 	}
 
-	conf.ChangeTesholdPerc = 5 // hc value - do not expose
+	if conf.ChangeTesholdPerc < 1 {
+		conf.ChangeTesholdPerc = 5
+	}
 	conf.Pid = os.Getpid()
 	conf.Hostname, _ = os.Hostname()
 	conf.HostIP, _ = getIps()
@@ -72,7 +81,7 @@ func getIps() ([]*net.IPNet, error) {
 		for _, a := range addrs {
 			if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 				if ipnet.IP.To4() != nil {
-					ret = append(ret, ipnet)
+					ret = append(ret, ipnet) // FIXME: when marshalled it is doing somethign very funny for bitmask
 				}
 			}
 		}
