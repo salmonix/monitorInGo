@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"gmon/watch/config"
 	"gmon/watch/process"
-	test "gmon/wathc/rest/ifacetest"
+	test "gmon/watch/rest/ifacetest"
 	"math"
 	"net/http"
 	"os"
@@ -37,14 +37,14 @@ type commandLine struct {
 func cli() commandLine {
 	var cl commandLine
 	testREST := flag.Bool("rest", false, "Test the REST API")
-	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a patters")
+	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a pattern")
 	fork := flag.Int("fork", 0, "Fork n children")
 	flag.Parse()
 	return commandLine{*testREST, *runAsConsumer, *fork}
 }
 
-func doRESTTest(c *config.Configuration) {
-	test.Configuration(c)
+func doRESTTest(c *config.Config) {
+	test.Run(c)
 }
 
 func register(p *process.WatchedProcess, c *config.Config) {
