@@ -38,24 +38,13 @@ type cReturn struct {
 	resp *http.Response
 }
 
-/* RunTests runs the test functions
-func (t *restTest) Run (c *config.Config) {
-	for v,_ in range(testCases) {
-
-
-
+// Run runs the tests declared in testcases.go
+func (t *restTest) Run() {
+	for c, v := range testCases {
+		fmt.Printf("Test %d : ", c)
+		fmt.Println(v)
 	}
 
-}
-*/
-
-func getTests() []testCase {
-	r := []testCase{
-		testCase{name: "Config", params: testParams{uri: "config", params: ""},
-			expected: getExpReturn("nil", 200, ""), // put here a JSON
-		},
-	}
-	return r
 }
 
 func getExpReturn(err string, statusCode int, body string) cReturn {
@@ -118,7 +107,7 @@ func assert(got, exp cReturn, name string) bool {
 }
 
 // NewRESTTest returns a struct with the REST calls prepared
-func NewRESTTest(c *config.Config) *restTest {
+func NewRESTTest(c config.Config) *restTest {
 
 	port := strconv.Itoa(c.Port)
 	url := "http://localhost:" + port + "/"

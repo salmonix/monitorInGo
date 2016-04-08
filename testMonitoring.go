@@ -15,27 +15,8 @@ import (
 	"time"
 )
 
-func main() {
-	cl := cli()
-	c := config.GetConfig()
-	if cl.testREST {
-		doRESTTest(c)
-	}
-	if cl.runAsConsumer {
-		register(process.NewWatchedProcess(os.Getpid(), 0), &c)
-		enterLoop()
-	}
-
-}
-
-type commandLine struct {
-	testREST      bool
-	runAsConsumer bool
-	fork          int
-}
-
 func cli() commandLine {
-	var cl commandLine
+
 	testREST := flag.Bool("rest", false, "Test the REST API")
 	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a pattern")
 	fork := flag.Int("fork", 0, "Fork n children")
@@ -43,15 +24,27 @@ func cli() commandLine {
 	return commandLine{*testREST, *runAsConsumer, *fork}
 }
 
-func doRESTTest(c *config.Config) {
-	test.Run(c)
+func main() {
+	cl := cli()
+	c := config.GetConfig()
+
+	if cl.testREST {
+		t := test.NewRESTTest(c)
+		t.Run()
+	}
+
+	if cl.runAsConsumer {
+		register(process.NewWatchedProcess(os.Getpid(), 0), &c)
+		enterLoop()
+	}
 }
 
+// register the current monitoring process
 func register(p *process.WatchedProcess, c *config.Config) {
 	body, _ := json.Marshal(p)
 	toPost := bytes.NewBuffer(body)
 	port := strconv.Itoa(c.Port)
-	url := "http://localhost:" + port + "/process" // TODO: do proper url
+	url := "http://localhost:" + port + "/process"
 	mime := "text/json"
 	resp, _ := http.Post(url, mime, toPost)
 	fmt.Println(resp)
@@ -133,4 +126,10 @@ func primes() {
 			primes = append(primes, x)
 		}
 	}
+}
+
+type commandLine struct {
+	testREST      bool
+	runAsConsumer bool
+	fork          int
 }
