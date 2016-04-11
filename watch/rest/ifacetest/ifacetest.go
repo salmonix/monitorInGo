@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gmon/watch/config"
+	p "gmon/watch/process"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,50 +17,45 @@ The functions are used by testMonitoring.go test application with the proper CLI
 The testing functions follow the uri of the API
 */
 
-type restTest struct {
-	post func(string, string) cReturn
-	put  func(string, string) cReturn
-	get  func(string, string) cReturn
-}
-
 type testCase struct {
 	name     string
-	params   testParams
-	expected cReturn
+	test     testParams
+	expected expected
 }
 
+// XXX FIXME make a switch function instead of that fancy dynamic function thingy.
+// just refacta that
 type testParams struct {
 	uri    string
 	params string
+	method string
 }
 
-type cReturn struct {
-	err  error
-	resp *http.Response
+type expected struct {
+	err     error
+	res     p.WatchedProcess
+	resList []p.WatchedProcess
+}
+
+type responser func(testCase) (string, bool)
+
+// RestTest contains the main HTTP wrapper
+type RestTest struct {
+	response responser
+}
+
+// NewRESTTest creates a test struct using the Config values
+func NewRESTTest(c *config.Config) RestTest {
+	return RestTest{response: getResponser(c)}
 }
 
 // Run runs the tests declared in testcases.go
-func (t *restTest) Run() {
-	for c, v := range testCases {
+func (t *RestTest) Run() {
+	for c, tCase := range testCases {
 		fmt.Printf("Test %d : ", c)
-		fmt.Println(v)
-	}
-
-}
-
-func getExpReturn(err string, statusCode int, body string) cReturn {
-
-	h := map[string][]string{
-		"Content-Type": []string{"application/json", "charset=utf-8"},
-	}
-
-	// make the string 'body' an IO readCloser: one example of ugly type lifting due to shallowness
-	r := http.Response{StatusCode: statusCode, Body: ioutil.NopCloser(bytes.NewReader([]byte(body))), Header: h}
-
-	if err == "nil" {
-		return cReturn{err: nil, resp: &r}
-	} else {
-		return cReturn{err: fmt.Errorf("%s", err), resp: &r}
+		if resp, ok := t.response(tCase); ok == true { // call test passed
+			assert(resp, tCase)
+		}
 	}
 }
 
@@ -94,7 +90,7 @@ func getBodyJSON(r io.ReadCloser) (map[string]interface{}, error) {
 	return gotStruct, nil
 }
 
-func assert(got, exp cReturn, name string) bool {
+func assert(got, exp expected, name string) bool {
 
 	errorMess := "Failing Test: " + name + ":"
 	// compare it via the compareRespExp
@@ -106,36 +102,41 @@ func assert(got, exp cReturn, name string) bool {
 
 }
 
-// NewRESTTest returns a struct with the REST calls prepared
-func NewRESTTest(c config.Config) *restTest {
+func getResponser(c *config.Config) responser {
 
 	port := strconv.Itoa(c.Port)
 	url := "http://localhost:" + port + "/"
 	mime := "application/json"
 
-	makeCReturn := func(r *http.Response, e error) cReturn {
-		gRet := cReturn{err: e, resp: r}
-		return gRet
-	}
+	return responser(
+		func(t testCase) (string, bool) {
 
-	test := restTest{
-		post: func(uri string, body string) cReturn {
-			toPost := bytes.NewBuffer([]byte(body))
-			return makeCReturn(http.Post(url+uri, mime, toPost))
-		},
-		put: func(uri string, body string) cReturn {
-			toPut := bytes.NewBuffer([]byte(body))
-			request, _ := http.NewRequest("PUT", url+uri, toPut)
-			return makeCReturn(http.DefaultClient.Do(request))
-		},
-		get: func(uri string, body string) cReturn {
-			// toGet := bytes.NewBuffer([]byte(body))
-			return makeCReturn(http.Get(url + uri + "/" + body))
-		},
-	}
-	return &test
+			var response *http.Response
+			var err error
+			uri := t.test.uri
+
+			b := t.test.params
+			body := bytes.NewBuffer([]byte(t.test.params))
+			switch t.test.method {
+			case "post":
+				response, err := http.Post(url+uri, mime, body)
+			case "put":
+				request, _ := http.NewRequest("PUT", url+uri, body)
+				response, err = http.DefaultClient.Do(request) // TODO: is it correct?
+			case "get":
+				response, err := http.Get(url + uri + "/" + t.test.params)
+			default:
+				panic("Not handled method in getResponse!")
+			}
+			if err != nil {
+				fmt.Println(err)
+				return "", false
+			}
+			return getBody(response)
+		})
 }
 
+//
 func getBody(r *http.Response) (string, bool) {
 	defer r.Body.Close()
 	contents, err := ioutil.ReadAll(r.Body)

@@ -2,6 +2,6 @@ package ifacetest
 
 var testCases = []testCase{
 	testCase{
-		name: "Config", params: testParams{uri: "config", params: ""}, expected: getExpReturn("nil", 200, ""),
+		name: "Config", test: testParams{uri: "config", params: "", method: "POST"}, expected: getExpReturn("nil", 200, ""), // watchedProcess
 	},
 }
