@@ -2,48 +2,46 @@ package process
 
 import (
 	"fmt"
-	"gmon/conversions"
-	"io/ioutil"
+	"gmon/ps"
 	"math"
-	"strings"
 )
 
 // WatchedProcess contains the process metrics and the PID of the process
 type WatchedProcess struct {
-	Cmd      string
-	CPU      float64
-	Pid      int
-	Ppid     int
-	Mem      float64
-	Vss      float64
-	VssMb    float32
-	Rss      float64
-	RssMb    float32
-	UID      int
-	Utime    int
-	Checked  int
-	Children []int
+	Cmd                 string
+	CPU                 float64
+	Pid                 int
+	Ppid                int
+	Mem                 float64
+	VirtualSizeMb       float64
+	VirtualSizePercent  float64
+	ResidentSizeMb      float64
+	ResidentSizePercent float64 // TODO: how shall I implement this?
+	UID                 int
+	Utime               int
+	State               string // enum: R is running, S is sleeping, D is sleeping in an uninterruptible wait, Z is zombie, T is traced or stopped
+	Checked             int
+	Children            []int
 }
 
-// GetPPID returns the parent process ID for the process identified with its PID
-// or 0, err if is does not exists
-// XXX: we do not check for cases when no ppid exists
-func GetPPID(p int) (int, error) {
-	stat, err := readStatm(p)
+// NewWatchedProcess returns an initiated struct  -reading the PS data from the PS table
+// If PID == 0 the data refers to the host.
+func NewWatchedProcess(pid int, ppid int) (*WatchedProcess, error) {
+
+	var newProcess WatchedProcess
+
+	if pid < 0 {
+		return &newProcess, nil
+	}
+
+	psRaw, err := ps.GetProcessTable(pid)
 	if err != nil {
-		return -1, err
-	}
-	ppid := stat[3]
-	return int(ppid), nil
-}
-
-// NewWatchedProcess returns an initiated struct
-func NewWatchedProcess(pid int, ppid int) *WatchedProcess {
-	if ppid == 0 {
-		ppid, _ = GetPPID(pid)
+		return &newProcess, err
 	}
 
-	return &WatchedProcess{Pid: pid, Ppid: ppid}
+	fmt.Scanf(ps.PsMask, psRaw, &newProcess)
+	return &newProcess, nil
+
 }
 
 // Update returns the updated pointer using the int as treshold for changes.
@@ -51,7 +49,7 @@ func (old *WatchedProcess) Update(new *WatchedProcess, tr float64) *WatchedProce
 	if overTreshold(old.Mem, new.Mem, tr) {
 		return new
 	}
-	if overTreshold(old.Rss, new.Rss, tr) {
+	if overTreshold(old.ResidentSizeMb, new.ResidentSizeMb, tr) {
 		return new
 	}
 	return old
@@ -63,14 +61,4 @@ func overTreshold(x, y, tr float64) bool {
 		return true
 	}
 	return false
-}
-
-func readStatm(p int) ([]int, error) {
-	statPath := fmt.Sprintf("/proc/%d/statm", p)
-	dataBytes, err := ioutil.ReadFile(statPath)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := conversions.StringsToInt(strings.Fields(string(dataBytes)))
-	return stat, err
 }

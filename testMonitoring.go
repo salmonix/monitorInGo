@@ -21,20 +21,33 @@ func cli() commandLine {
 	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a pattern")
 	fork := flag.Int("fork", 0, "Fork n children")
 	flag.Parse()
-	return commandLine{*testREST, *runAsConsumer, *fork}
+	cl := commandLine{*testREST, *runAsConsumer, *fork}
+	dummy := commandLine{false, false, 0}
+	if cl == dummy {
+		fmt.Println(`
+No command line parameter is passed.
+Usage: go run testMonitoring.go -(rest|consumer|fork int)
+			`)
+		os.Exit(124)
+	}
+	return cl
 }
 
 func main() {
 	cl := cli()
 	c := config.GetConfig()
+	proc, err := process.NewWatchedProcess(os.Getpid(), 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+	register(proc, &c)
 
 	if cl.testREST {
-		t := test.NewRESTTest(c)
+		t := test.NewRESTTest(&c)
 		t.Run()
 	}
 
 	if cl.runAsConsumer {
-		register(process.NewWatchedProcess(os.Getpid(), 0), &c)
 		enterLoop()
 	}
 }
@@ -44,10 +57,16 @@ func register(p *process.WatchedProcess, c *config.Config) {
 	body, _ := json.Marshal(p)
 	toPost := bytes.NewBuffer(body)
 	port := strconv.Itoa(c.Port)
-	url := "http://localhost:" + port + "/process"
+	url := "http://localhost:" + port + "/processes"
 	mime := "text/json"
-	resp, _ := http.Post(url, mime, toPost)
-	fmt.Println(resp)
+	resp, err := http.Post(url, mime, toPost)
+	if err != nil {
+		panic(fmt.Sprintf("%s", err))
+	}
+	if resp.StatusCode != 200 {
+		panic(fmt.Sprintf("%d RESPONSE : %s", resp.StatusCode, resp.Body))
+	}
+	fmt.Printf("Process is registered as %s\n", body)
 }
 
 func enterLoop() {
