@@ -46,7 +46,7 @@ func NewWatchedProcess(pid int, ppid int) *WatchedProcess {
 	return &WatchedProcess{Pid: pid, Ppid: ppid}
 }
 
-// Update returns the updated pointer using the th int as treshold for changes.
+// Update returns the updated pointer using the int as treshold for changes.
 func (old *WatchedProcess) Update(new *WatchedProcess, tr float64) *WatchedProcess {
 	if overTreshold(old.Mem, new.Mem, tr) {
 		return new
