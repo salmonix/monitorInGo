@@ -26,7 +26,7 @@ type Config struct {
 var conf Config
 
 // GetConfig initializes the conf variable reading the JSON config file or
-// returning an already existing conf global.
+// returning a copy of an already existing conf global.
 func GetConfig() Config {
 
 	if conf.Pid > 1 {

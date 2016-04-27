@@ -122,15 +122,15 @@ func getResponser(c *config.Config) responser {
 			body := bytes.NewBuffer([]byte(t.test.params))
 
 			switch t.test.method {
-			case "post":
+			case "POST":
 				response, err = http.Post(url+uri, mime, body)
-			case "put":
+			case "PUT":
 				request, _ := http.NewRequest("PUT", url+uri, body)
 				response, err = http.DefaultClient.Do(request) // TODO: is it correct?
-			case "get":
+			case "GET":
 				response, err = http.Get(url + uri + "/" + t.test.params)
 			default:
-				panic("Not handled method in getResponse!")
+				panic(fmt.Errorf("Not handled method in getResponse! : %s", t.test.method))
 			}
 			if err != nil {
 				fmt.Println(err)

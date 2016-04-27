@@ -21,7 +21,16 @@ func cli() commandLine {
 	runAsConsumer := flag.Bool("consumer", false, "Run cosuming memory in a pattern")
 	fork := flag.Int("fork", 0, "Fork n children")
 	flag.Parse()
-	return commandLine{*testREST, *runAsConsumer, *fork}
+	cl := commandLine{*testREST, *runAsConsumer, *fork}
+	dummy := commandLine{false, false, 0}
+	if cl == dummy {
+		fmt.Println(`
+No command line parameter is passed.
+Usage: go run testMonitoring.go (rest|consumer|fork int)
+			`)
+		os.Exit(124)
+	}
+	return cl
 }
 
 func main() {
@@ -29,7 +38,7 @@ func main() {
 	c := config.GetConfig()
 
 	if cl.testREST {
-		t := test.NewRESTTest(c)
+		t := test.NewRESTTest(&c)
 		t.Run()
 	}
 
