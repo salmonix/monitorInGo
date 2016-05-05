@@ -10,19 +10,19 @@ import (
 
 // WatchedProcess contains the process metrics and the PID of the process
 type WatchedProcess struct {
-	Cmd      string
-	CPU      float64
-	Pid      int
-	Ppid     int
-	Mem      float64
-	Vss      float64
-	VssMb    float32
-	Rss      float64
-	RssMb    float32
-	UID      int
-	Utime    int
-	Checked  int
-	Children []int
+	Cmd            string
+	CPU            float64
+	Pid            int
+	Ppid           int
+	Mem            float64
+	VirtualSize    float64
+	VirtualSizeMb  float32
+	ResidentSize   float64
+	ResidentSizeMb float32
+	UID            int
+	Utime          int
+	Checked        int
+	Children       []int
 }
 
 // GetPPID returns the parent process ID for the process identified with its PID
@@ -51,7 +51,7 @@ func (old *WatchedProcess) Update(new *WatchedProcess, tr float64) *WatchedProce
 	if overTreshold(old.Mem, new.Mem, tr) {
 		return new
 	}
-	if overTreshold(old.Rss, new.Rss, tr) {
+	if overTreshold(old.ResidentSize, new.ResidentSize, tr) {
 		return new
 	}
 	return old

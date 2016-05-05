@@ -61,31 +61,30 @@ func assert(got, exp responseContainer, name string) bool {
 
 	errorMess := "Failing Test: " + name + ":"
 	// compare it via the compareRespExp
-	if compareContainers(got, exp) == false {
-		fmt.Println(errorMess + " respose differs: " + fmt.Sprintln(got) + " : " + fmt.Sprintln(exp))
+	if compareResponses(got, exp) == false {
+		fmt.Println(errorMess + " response differs.\n     Got: " + fmt.Sprintln(got) + "Expected: " + fmt.Sprint(exp))
 	}
-	fmt.Println(errorMess + " error differs: " + fmt.Sprintln(got) + " : " + fmt.Sprintln(exp))
+	if got.err != exp.err {
+		fmt.Println(errorMess + " error differs.\n     Got: " + fmt.Sprintln(got) + "Expected: " + fmt.Sprint(exp))
+	}
 	return false
-
 }
 
-func compareContainers(got, exp responseContainer) bool {
+func compareResponses(got, exp responseContainer) bool {
 
 	dummy := responseContainer{}
-	if got.err == exp.err {
-		if exp.err != nil {
-			if reflect.DeepEqual(exp.res, dummy.res) { // reflect DeepEqual
-				return compareStructs(got.res, exp.res)
-			}
-			if reflect.DeepEqual(exp.resList, dummy.resList) == false {
-				for c, e := range exp.resList {
-					g := got.resList[c]
-					if compareStructs(e, g) == false {
-						return false
-					}
+	if exp.err != nil {
+		if reflect.DeepEqual(exp.res, dummy.res) { // reflect DeepEqual
+			return compareStructs(got.res, exp.res)
+		}
+		if reflect.DeepEqual(exp.resList, dummy.resList) == false {
+			for c, e := range exp.resList {
+				g := got.resList[c]
+				if compareStructs(e, g) == false {
+					return false
 				}
-				return true
 			}
+			return true
 		}
 	}
 	return false
@@ -94,16 +93,14 @@ func compareContainers(got, exp responseContainer) bool {
 func compareStructs(got, exp p.WatchedProcess) bool {
 	gotValues := reflect.ValueOf(got)
 	expValues := reflect.ValueOf(exp)
-	identical := true
-
 	for i := 0; i < gotValues.NumField(); i++ {
 		e := expValues.Field(i)
 		g := gotValues.Field(i)
 		if e != g {
-			identical = false
+			return false
 		}
 	}
-	return identical
+	return true
 }
 
 func getResponser(c *config.Config) responser {

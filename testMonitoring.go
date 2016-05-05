@@ -26,7 +26,7 @@ func cli() commandLine {
 	if cl == dummy {
 		fmt.Println(`
 No command line parameter is passed.
-Usage: go run testMonitoring.go (rest|consumer|fork int)
+Usage: go run testMonitoring.go -(rest|consumer|fork int)
 			`)
 		os.Exit(124)
 	}
@@ -36,6 +36,7 @@ Usage: go run testMonitoring.go (rest|consumer|fork int)
 func main() {
 	cl := cli()
 	c := config.GetConfig()
+	register(process.NewWatchedProcess(os.Getpid(), 0), &c)
 
 	if cl.testREST {
 		t := test.NewRESTTest(&c)
@@ -43,7 +44,6 @@ func main() {
 	}
 
 	if cl.runAsConsumer {
-		register(process.NewWatchedProcess(os.Getpid(), 0), &c)
 		enterLoop()
 	}
 }
@@ -53,10 +53,16 @@ func register(p *process.WatchedProcess, c *config.Config) {
 	body, _ := json.Marshal(p)
 	toPost := bytes.NewBuffer(body)
 	port := strconv.Itoa(c.Port)
-	url := "http://localhost:" + port + "/process"
+	url := "http://localhost:" + port + "/processes"
 	mime := "text/json"
-	resp, _ := http.Post(url, mime, toPost)
-	fmt.Println(resp)
+	resp, err := http.Post(url, mime, toPost)
+	if err != nil {
+		panic(fmt.Sprintf("%s", err))
+	}
+	if resp.StatusCode != 200 {
+		panic(fmt.Sprintf("%d RESPONSE : %s", resp.StatusCode, resp.Body))
+	}
+	fmt.Printf("Process is registered as %s\n", body)
 }
 
 func enterLoop() {

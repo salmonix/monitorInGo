@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gmon/watch"
 	c "gmon/watch/config"
+	"gmon/watch/process"
 	"net/http"
 	"strconv"
 
@@ -27,15 +28,17 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 		c.JSON(http.StatusOK, conf)
 	})
 
-	router.GET("/process/*id", func(c *gin.Context) {
+	router.GET("/processes/*id", func(c *gin.Context) {
+		fmt.Printf("GET %s", c.Param("id"))
 		pid := parseInt(c.Param("id"), c)
 		proc, _ := w.Get(pid)
 		c.JSON(http.StatusOK, proc)
 	})
 
-	router.POST("/process/:id", func(c *gin.Context) {
-		pid := parseInt(c.Param("id"), c)
-		c.JSON(http.StatusOK, w.Add(pid))
+	router.POST("/processes", func(c *gin.Context) {
+		var process process.WatchedProcess
+		c.BindJSON(&process)
+		c.JSON(http.StatusOK, w.Add(process.Pid, process.Ppid))
 	})
 
 	return router
