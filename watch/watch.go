@@ -2,9 +2,9 @@ package watch
 
 import (
 	"fmt"
+	"gmon/ps"
 	"gmon/watch/process"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -15,28 +15,32 @@ import (
 type WatchingContainer struct {
 	processes map[int]*process.WatchedProcess
 	treshold  float64
+	// system    System // TODO: add system
 }
 
 // Dummy is an empty watched process with -1 pid and no values.
-var Dummy = process.NewWatchedProcess(-1, 0)
+var Dummy, _ = process.NewWatchedProcess(-1, 0)
 
 // NewContainer return a new *WatchingContainer
 func NewContainer(tr float64) *WatchingContainer {
 	processes := make(map[int]*process.WatchedProcess)
 	Watch := &WatchingContainer{processes, float64(tr)}
-	Watch.Add(os.Getpid(), 0)
+	Watch.Add(os.Getpid(), 0) // register self
 	return Watch
 }
 
 // Add registers a process in the WatchingContainer
-// TODO : on init scan the process immediately
-func (w *WatchingContainer) Add(p, ppid int) process.WatchedProcess {
+func (w *WatchingContainer) Add(p, ppid int) (process.WatchedProcess, error) {
 	if _, ok := w.processes[p]; ok == false {
-		np := process.NewWatchedProcess(p, ppid)
+		np, err := process.NewWatchedProcess(p, ppid)
+		if err != nil {
+			fmt.Printf("New process came back with error: %s", err)
+			return *np, err
+		}
 		w.processes[p] = np
 	}
 	np, _ := w.processes[p]
-	return *np
+	return *np, nil
 }
 
 // Delete removes a process from the watchlist
@@ -46,7 +50,7 @@ func (w *WatchingContainer) Delete(p int) {
 	}
 }
 
-// Get returns the []struct for a watched process and true if the process exists
+// Get returns the ([]struct, ok) for a watched process and true if the process exists
 // a dummy value and false if not. If pid is <0 all the processes are returned.
 func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 
@@ -58,11 +62,10 @@ func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 			ret[p] = v
 			p++
 		}
-		return ret, false
+		return ret, true
 	}
 	ret := make([]*process.WatchedProcess, 1)
 	if pr, ok := w.processes[p]; ok == true {
-		fmt.Printf("Requested: %d", p)
 		ret[0] = pr
 		return ret, true
 	}
@@ -73,7 +76,7 @@ func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 // Refresh re-reads the ps table and refreshes the process data
 func (w *WatchingContainer) Refresh() error {
 
-	psTable, err := getProcessTable(0)
+	psTable, err := ps.GetProcessTable(0)
 	if err != nil {
 		return err
 	}
@@ -84,49 +87,13 @@ func (w *WatchingContainer) Refresh() error {
 		rowPid, _ := strconv.ParseInt(psRow[3], 10, 64) // not the best error handling ever
 		if proc, ok := w.processes[int(rowPid)]; ok == true {
 
-			newStatus := convertPS2Process(proc.Pid, proc.Ppid, psRow)
+			newStatus, err := process.NewWatchedProcess(proc.Pid, proc.Ppid)
+			if err != nil {
+				return err
+			}
 
 			w.processes[proc.Pid] = proc.Update(newStatus, w.treshold)
 		}
 	}
 	return nil
-}
-
-// passing pid and ppid forces that these are the values that must be known
-// at this point
-func convertPS2Process(pid, ppid int, psRow []string) *process.WatchedProcess {
-	fields := 9
-	asFloat := make([]float64, fields-2)
-	for c := 2; c < fields; c++ {
-		psVal, _ := strconv.ParseFloat(psRow[2], 64) // XXX can it be other than number?
-		asFloat[c] = psVal
-	}
-
-	newStatus := process.NewWatchedProcess(pid, ppid)
-	newStatus.Cmd = psRow[0]
-	cpu, _ := strconv.ParseFloat(psRow[1], 32)
-	newStatus.CPU = cpu
-	newStatus.Mem = asFloat[4]
-	newStatus.ResidentSize = asFloat[5]
-	newStatus.VirtualSize = asFloat[6]
-	newStatus.UID = int(asFloat[7])
-	newStatus.Utime = int(asFloat[8])
-	return newStatus
-}
-
-func getProcessTable(p int) ([]byte, error) {
-
-	var commandString string
-	if p != 0 {
-		commandString = "-p " + strconv.Itoa(p)
-	} else {
-		commandString = ""
-	}
-	//                     0  1    2   3    4    5   6    7    8
-	commandString += "-eo cmd,pcpu,pid,ppid,size,rss,vsize,uid,utime"
-	psTable, err := exec.Command("ps", commandString).Output() // check fields when it changes
-	if err != nil {
-		return psTable, err
-	}
-	return psTable, nil
 }

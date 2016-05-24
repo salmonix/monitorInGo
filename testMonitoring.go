@@ -36,7 +36,11 @@ Usage: go run testMonitoring.go -(rest|consumer|fork int)
 func main() {
 	cl := cli()
 	c := config.GetConfig()
-	register(process.NewWatchedProcess(os.Getpid(), 0), &c)
+	proc, err := process.NewWatchedProcess(os.Getpid(), 0)
+	if err != nil {
+		fmt.Println(err)
+	}
+	register(proc, &c)
 
 	if cl.testREST {
 		t := test.NewRESTTest(&c)
