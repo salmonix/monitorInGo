@@ -1,10 +1,9 @@
 package process
 
 import (
+	"fmt"
 	"gmon/ps"
 	"math"
-	"strconv"
-	"strings"
 )
 
 // WatchedProcess contains the process metrics and the PID of the process
@@ -40,24 +39,7 @@ func NewWatchedProcess(pid int, ppid int) (*WatchedProcess, error) {
 		return &newProcess, err
 	}
 
-	psRow := strings.Fields(string(psRaw))
-	fields := len(psRow)
-	asFloat := make([]float64, fields-2)
-	for c := 2; c < fields; c++ {
-		psVal, _ := strconv.ParseFloat(psRow[2], 64) // XXX can it be other than number?
-		asFloat[c] = psVal
-	}
-
-	newProcess.Pid = pid
-	newProcess.Ppid = ppid
-	newProcess.Cmd = psRow[0]
-	cpu, _ := strconv.ParseFloat(psRow[1], 32)
-	newProcess.CPU = cpu
-	newProcess.Mem = asFloat[4]
-	newProcess.ResidentSizeMb = asFloat[5]
-	newProcess.VirtualSizeMb = asFloat[6]
-	newProcess.UID = int(asFloat[7])
-	newProcess.Utime = int(asFloat[8])
+	fmt.Scanf(ps.PsMask, psRaw, &newProcess)
 	return &newProcess, nil
 
 }
