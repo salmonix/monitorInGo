@@ -21,7 +21,7 @@ type WatchingContainer struct {
 }
 
 // Dummy is an empty watched process with -1 pid and no values.
-var Dummy, _ = process.NewWatchedProcess(-1, 0)
+var Dummy = process.NewWatchedProcess(-1, 0)
 
 // NewContainer return a new *WatchingContainer
 func NewContainer(tr float64) *WatchingContainer {
@@ -36,10 +36,7 @@ func (w *WatchingContainer) Add(p, ppid int) *process.WatchedProcess {
 	l.Debug("Adding process pid", p, "to the process list")
 	if _, ok := w.Processes[p]; ok == false {
 		l.Debug("-- Process", p, "pid not found in table, creating new processwatcher")
-		np, err := process.NewWatchedProcess(p, ppid)
-		if err != nil {
-			panic(err)
-		}
+		np := process.NewWatchedProcess(p, ppid)
 		w.Processes[p] = np
 	}
 	np, _ := w.Processes[p]
@@ -93,11 +90,7 @@ func (w *WatchingContainer) Refresh() error {
 
 		if proc, ok := w.Processes[rowPid]; ok == true {
 
-			newStatus, err := process.NewWatchedProcess(proc.Pid, proc.Ppid)
-			if err != nil {
-				return err
-			}
-
+			newStatus := process.NewWatchedProcess(proc.Pid, proc.Ppid)
 			w.Processes[proc.Pid] = proc.Update(newStatus, w.treshold)
 		}
 	}

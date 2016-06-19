@@ -31,57 +31,18 @@ var l = glog.GetLogger("watch")
 
 // NewWatchedProcess returns an initiated struct  -reading the PS data from the PS table
 // If PID == 0 the data refers to the host.
-func NewWatchedProcess(pid int, ppid int) (*WatchedProcess, error) {
+func NewWatchedProcess(pid int, ppid int) *WatchedProcess {
 
 	var newProcess WatchedProcess
-	l.Debug("NewWatchedProcess is requested for pid ", pid)
-
 	if pid < 0 {
-		l.Debug("Pid is smaller than zero")
-		return &newProcess, nil
+		return &newProcess
 	}
 
 	psRaw, err := ps.GetProcessTable(pid)
 	if err != nil {
 		panic(err)
-		// return &newProcess, err
 	}
-
-	// TODO: FIXME: Still wrong parsing
-	// var psString = "pid,cmd,ppid,vsize,rss,pcpu,size,uid,utime,state"
-	// var PsMask = "%d %s %d %d %d %d %d %d %s %s"
-	var vsize, rss, pcpu, size, uid int
-	var cmd, utime, state string
-	c, err := fmt.Sscan(string(psRaw), ps.PsMask, &pid, &cmd, &ppid, &vsize, &rss, &pcpu, &size, &uid, &utime, &state)
-	l.Debug("Scanned", c, "element of the 10")
-	if err != nil {
-		panic(err)
-		//return &newProcess, err
-	}
-
-	// TODO: I need the system mem size from 0
-	newProcess.Cmd = cmd
-	newProcess.CPU = float64(pcpu)
-	newProcess.Pid = pid
-	newProcess.Ppid = ppid
-	//newProcess.Mem =  // TODO calculate
-	newProcess.VirtualSizeMb = conv.BytesToMb(float64(vsize))
-	// newProcess.VirtualSizePercent =
-	newProcess.ResidentSizeMb = conv.BytesToMb(float64(rss))
-	// newProcess.ResidentSizePercent // TODO calculate
-	newProcess.UID = uid
-
-	if uT, err := time.Parse("00:00:00", utime); err == nil {
-		newProcess.Utime = int(uT.Unix())
-	} else {
-		newProcess.Utime = -1
-	}
-
-	newProcess.State = state
-	// Checked = int // TODO: not implemented
-	// Children =             []int // TODO: not implemented
-	l.Warning("Returning from new process")
-	return &newProcess, nil
+	return castPsRow2Process(psRaw)
 }
 
 // Update returns the updated pointer using the int as treshold for changes.
@@ -101,4 +62,46 @@ func overTreshold(x, y, tr float64) bool {
 		return true
 	}
 	return false
+}
+
+func castPsRow2Process(psRaw []byte) *WatchedProcess {
+
+	var p WatchedProcess
+	// var psString = "pid,cmd,ppid,vsize,rss,pcpu,size,uid,utime,state"
+	var pid, ppid, vsize, rss, size, uid int
+	var pcpu float64
+	var cmd, utime, state string
+	c, err := fmt.Sscan(string(psRaw), &pid, &cmd, &ppid, &vsize, &rss, &pcpu, &size, &uid, &utime, &state)
+	//l.Debug("Scanned", c, "element of the 10")
+	//l.Debug(string(psRaw))
+	if err != nil {
+		panic(err)
+	}
+
+	if c != 10 {
+		l.Warning("Less or more elements got from psRaw:", c)
+	}
+
+	// TODO: I need the system mem size from 0
+	p.Cmd = cmd
+	p.CPU = pcpu
+	p.Pid = pid
+	p.Ppid = ppid
+	//p.Mem =  // TODO calculate
+	p.VirtualSizeMb = conv.BytesToMb(float64(vsize))
+	// p.VirtualSizePercent =
+	p.ResidentSizeMb = conv.BytesToMb(float64(rss))
+	// p.ResidentSizePercent // TODO calculate
+	p.UID = uid
+
+	if uT, err := time.Parse("00:00:00", utime); err == nil {
+		p.Utime = int(uT.Unix())
+	} else {
+		p.Utime = -1
+	}
+
+	p.State = state
+	// Checked = int // TODO: not implemented
+	// Children =             []int // TODO: not implemented
+	return &p
 }
