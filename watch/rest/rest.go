@@ -1,22 +1,27 @@
 package rest
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"gmon/glog"
 	"gmon/watch"
 	c "gmon/watch/config"
 	"gmon/watch/process"
+	"io/ioutil"
 	"net/http"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
+
+var l = glog.GetLogger("watch")
 
 // GetRouter implements the REST interface to add, remove a query processes.
 // For details see the Wiki ( https://bitbucket.org/monitoringo/monitoringo/wiki/Monitoring )
-// FIXME: missing DELETE
+// TODO: missing DELETE
 func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 
 	router := gin.Default()
+	router.Use(gin.Logger())
 	router.LoadHTMLGlob("watch/templates/index.html")
 
 	router.GET("/monitoring", func(c *gin.Context) {
@@ -29,18 +34,35 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 		c.JSON(http.StatusOK, conf)
 	})
 
+	router.GET("/processes", func(c *gin.Context) {
+		if proc, err := w.Get(-1); err == true {
+			c.JSON(http.StatusOK, proc)
+		} else {
+			c.JSON(http.StatusBadRequest, "Not found") // TODO: find a better error code
+		}
+	})
+
 	router.GET("/processes/*id", func(c *gin.Context) {
 		fmt.Printf("GET %s", c.Param("id"))
 		pid := parseInt(c.Param("id"), c)
-		proc, err := w.Get(pid)
-		answerMaybes(c, proc, err)
+		proc, ok := w.Get(pid)
+		if ok == true {
+			c.JSON(http.StatusOK, proc)
+			return
+		}
+		c.JSON(http.StatusExpectationFailed, "Unable to return process list")
+		return
+
 	})
 
 	router.POST("/processes", func(c *gin.Context) {
 		var process process.WatchedProcess
-		c.BindJSON(&process)
-		proc, err := w.Add(process.Pid, process.Ppid)
-		answerMaybe(c, proc, err)
+		body, _ := ioutil.ReadAll(c.Request.Body)
+		json.Unmarshal(body, &process)
+
+		proc := w.Add(process.Pid, process.Ppid)
+		c.JSON(http.StatusOK, proc)
+
 	})
 
 	return router
@@ -56,19 +78,4 @@ func parseInt(s string, c *gin.Context) int {
 	}
 	c.String(http.StatusBadRequest, "unable to serve data for %s", s)
 	return 0
-}
-
-func answerMaybe(c *gin.Context, proc process.WatchedProcess, err error) {
-	if err == nil {
-		c.JSON(http.StatusOK, proc)
-	}
-	c.JSON(http.StatusExpectationFailed, fmt.Sprint(err))
-}
-
-// here the error handling is not too smart
-func answerMaybes(c *gin.Context, procs []*process.WatchedProcess, ok bool) {
-	if ok == true {
-		c.JSON(http.StatusOK, procs)
-	}
-	c.JSON(http.StatusExpectationFailed, "Unable to return process list")
 }

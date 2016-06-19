@@ -36,10 +36,8 @@ Usage: go run testMonitoring.go -(rest|consumer|fork int)
 func main() {
 	cl := cli()
 	c := config.GetConfig()
-	proc, err := process.NewWatchedProcess(os.Getpid(), 0)
-	if err != nil {
-		fmt.Println(err)
-	}
+	proc := process.NewWatchedProcess(os.Getpid(), 0)
+
 	register(proc, &c)
 
 	if cl.testREST {
@@ -66,7 +64,7 @@ func register(p *process.WatchedProcess, c *config.Config) {
 	if resp.StatusCode != 200 {
 		panic(fmt.Sprintf("%d RESPONSE : %s", resp.StatusCode, resp.Body))
 	}
-	fmt.Printf("Process is registered as %s\n", body)
+	fmt.Printf("Process is (hopefully) registered as %s\n", body)
 }
 
 func enterLoop() {
