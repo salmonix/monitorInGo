@@ -2,18 +2,20 @@ package watch
 
 import (
 	"fmt"
+	"gmon/glog"
 	"gmon/ps"
 	"gmon/watch/process"
 	"os"
-	"strconv"
 	"strings"
 )
+
+var l = glog.GetLogger("watch")
 
 // WatchingContainer contains a read channel to receive instrucions
 // and a map of id of processes to scan.
 // TODO: add a watch for the system itself
 type WatchingContainer struct {
-	processes map[int]*process.WatchedProcess
+	Processes map[int]*process.WatchedProcess
 	treshold  float64
 	// system    System // TODO: add system
 }
@@ -24,29 +26,30 @@ var Dummy, _ = process.NewWatchedProcess(-1, 0)
 // NewContainer return a new *WatchingContainer
 func NewContainer(tr float64) *WatchingContainer {
 	processes := make(map[int]*process.WatchedProcess)
-	Watch := &WatchingContainer{processes, float64(tr)}
-	Watch.Add(os.Getpid(), 0) // register self
-	return Watch
+	watch := &WatchingContainer{processes, float64(tr)}
+	watch.Add(os.Getpid(), 0)
+	return watch
 }
 
-// Add registers a process in the WatchingContainer
-func (w *WatchingContainer) Add(p, ppid int) (process.WatchedProcess, error) {
-	if _, ok := w.processes[p]; ok == false {
+// Add registers a process in the WatchingContainer returning the new process
+func (w *WatchingContainer) Add(p, ppid int) *process.WatchedProcess {
+	l.Debug("Adding process pid", p, "to the process list")
+	if _, ok := w.Processes[p]; ok == false {
+		l.Debug("-- Process", p, "pid not found in table, creating new processwatcher")
 		np, err := process.NewWatchedProcess(p, ppid)
 		if err != nil {
-			fmt.Printf("New process came back with error: %s", err)
-			return *np, err
+			panic(err)
 		}
-		w.processes[p] = np
+		w.Processes[p] = np
 	}
-	np, _ := w.processes[p]
-	return *np, nil
+	np, _ := w.Processes[p]
+	return np
 }
 
 // Delete removes a process from the watchlist
 func (w *WatchingContainer) Delete(p int) {
-	if _, ok := w.processes[p]; ok == true {
-		delete(w.processes, p)
+	if _, ok := w.Processes[p]; ok == true {
+		delete(w.Processes, p)
 	}
 }
 
@@ -56,16 +59,16 @@ func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 
 	fmt.Printf("Requested: %d", p)
 	if p < 0 {
-		ret := make([]*process.WatchedProcess, len(w.processes))
+		ret := make([]*process.WatchedProcess, len(w.Processes))
 		p := 0
-		for _, v := range w.processes {
+		for _, v := range w.Processes {
 			ret[p] = v
 			p++
 		}
 		return ret, true
 	}
 	ret := make([]*process.WatchedProcess, 1)
-	if pr, ok := w.processes[p]; ok == true {
+	if pr, ok := w.Processes[p]; ok == true {
 		ret[0] = pr
 		return ret, true
 	}
@@ -82,17 +85,20 @@ func (w *WatchingContainer) Refresh() error {
 	}
 
 	for _, r := range strings.Split(string(psTable), "\n") {
-		psRow := strings.Fields(r)
+		rowPid, err := ps.GetPsPID([]byte(r))
 
-		rowPid, _ := strconv.ParseInt(psRow[3], 10, 64) // not the best error handling ever
-		if proc, ok := w.processes[int(rowPid)]; ok == true {
+		if err != nil {
+			return err
+		}
+
+		if proc, ok := w.Processes[rowPid]; ok == true {
 
 			newStatus, err := process.NewWatchedProcess(proc.Pid, proc.Ppid)
 			if err != nil {
 				return err
 			}
 
-			w.processes[proc.Pid] = proc.Update(newStatus, w.treshold)
+			w.Processes[proc.Pid] = proc.Update(newStatus, w.treshold)
 		}
 	}
 	return nil

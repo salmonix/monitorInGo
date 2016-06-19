@@ -13,7 +13,7 @@ import (
 
 // GetRouter implements the REST interface to add, remove a query processes.
 // For details see the Wiki ( https://bitbucket.org/monitoringo/monitoringo/wiki/Monitoring )
-// FIXME: missing DELETE
+// TODO: missing DELETE
 func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 
 	router := gin.Default()
@@ -29,6 +29,10 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 		c.JSON(http.StatusOK, conf)
 	})
 
+	router.GET("/processes", func(c *gin.Context) {
+		c.JSON(http.StatusOK, w.Processes)
+	})
+
 	router.GET("/processes/*id", func(c *gin.Context) {
 		fmt.Printf("GET %s", c.Param("id"))
 		pid := parseInt(c.Param("id"), c)
@@ -38,9 +42,8 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 
 	router.POST("/processes", func(c *gin.Context) {
 		var process process.WatchedProcess
-		c.BindJSON(&process)
-		proc, err := w.Add(process.Pid, process.Ppid)
-		answerMaybe(c, proc, err)
+		proc := w.Add(process.Pid, process.Ppid)
+		answerMaybe(c, proc)
 	})
 
 	return router
@@ -58,11 +61,8 @@ func parseInt(s string, c *gin.Context) int {
 	return 0
 }
 
-func answerMaybe(c *gin.Context, proc process.WatchedProcess, err error) {
-	if err == nil {
-		c.JSON(http.StatusOK, proc)
-	}
-	c.JSON(http.StatusExpectationFailed, fmt.Sprint(err))
+func answerMaybe(c *gin.Context, proc *process.WatchedProcess) {
+	c.JSON(http.StatusOK, proc)
 }
 
 // here the error handling is not too smart
