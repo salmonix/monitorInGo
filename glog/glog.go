@@ -4,21 +4,20 @@ import (
 	"os"
 
 	"github.com/op/go-logging"
-	//"github.com/gin-gonic/gin"
 )
 
-// GetLogger returns the requested logger
+// GetLogger returns the requested logger. This logger is independent from ginnies logger.
+// Currently logs only to screen.
 func GetLogger(kind string) *logging.Logger {
 
 	var log = logging.MustGetLogger("example")
 	var format = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortfunc} > %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+		`%{color}%{time:20060102150405.000} > %{level:.4s} %{id:03x}%{message}%{color:reset}`,
 	)
 
 	backend2 := logging.NewLogBackend(os.Stderr, "", 0)
 	backend2Formatter := logging.NewBackendFormatter(backend2, format)
 	logging.SetBackend(backend2Formatter)
 
-	//log.Debug(kind, " kind of logger is requested")
 	return log
 }

@@ -7,9 +7,11 @@ import (
 	"gmon/watch/process"
 	"net/http"
 	"strconv"
-
+	"gmon/glog"
 	"github.com/gin-gonic/gin"
 )
+
+var l = glog.GetLogger("watch")
 
 // GetRouter implements the REST interface to add, remove a query processes.
 // For details see the Wiki ( https://bitbucket.org/monitoringo/monitoringo/wiki/Monitoring )
@@ -17,6 +19,7 @@ import (
 func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 
 	router := gin.Default()
+	router.Use(gin.Logger())
 	router.LoadHTMLGlob("watch/templates/index.html")
 
 	router.GET("/monitoring", func(c *gin.Context) {
@@ -30,7 +33,11 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 	})
 
 	router.GET("/processes", func(c *gin.Context) {
-		c.JSON(http.StatusOK, w.Processes)
+		if proc,err := w.Get(-1); err == true {
+			c.JSON(http.StatusOK, proc )
+		} else {
+		  c.JSON(http.StatusBadRequest,"Not found") // TODO: find a better error code
+		}
 	})
 
 	router.GET("/processes/*id", func(c *gin.Context) {
