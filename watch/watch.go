@@ -2,7 +2,6 @@ package watch
 
 import (
 	"bytes"
-	"fmt"
 	"gmon/glog"
 	"gmon/ps"
 	"gmon/watch/process"
@@ -14,11 +13,11 @@ import (
 var l = glog.GetLogger("watch")
 
 // WatchingContainer contains a read channel to receive instrucions
-// and a map of id of processes to scan.
+// and a map of id : processes to scan.
 // TODO: add a watch for the system itself
 type WatchingContainer struct {
 	Processes map[int]*process.WatchedProcess
-	treshold  float64
+	treshold  uint16
 	// system    System // TODO: add system parameters
 }
 
@@ -26,18 +25,16 @@ type WatchingContainer struct {
 var Dummy = process.NewWatchedProcess(-1, 0)
 
 // NewContainer return a new *WatchingContainer
-func NewContainer(tr float64) *WatchingContainer {
+func NewContainer(tr uint16) *WatchingContainer {
 	processes := make(map[int]*process.WatchedProcess)
-	watch := &WatchingContainer{processes, float64(tr)}
+	watch := &WatchingContainer{processes, tr}
 	watch.Add(os.Getpid(), 0)
 	return watch
 }
 
 // Add registers a process in the WatchingContainer returning the new process
 func (w *WatchingContainer) Add(p, ppid int) *process.WatchedProcess {
-	l.Debug("Adding process pid", p, "to the process list")
 	if _, ok := w.Processes[p]; ok == false {
-		l.Debug("-- Process", p, "pid not found in table, creating new processwatcher")
 		np := process.NewWatchedProcess(p, ppid)
 		w.Processes[p] = np
 	}

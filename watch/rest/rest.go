@@ -42,12 +42,11 @@ func GetRouter(w *watch.WatchingContainer, conf *c.Config) *gin.Engine {
 		}
 	})
 
-	router.GET("/processes/*id", func(c *gin.Context) {
-		fmt.Printf("GET %s", c.Param("id"))
+	router.GET("/processes/:id", func(c *gin.Context) {
 		pid := parseInt(c.Param("id"), c)
 		proc, ok := w.Get(pid)
 		if ok == true {
-			c.JSON(http.StatusOK, proc)
+			c.JSON(http.StatusOK, proc[0])
 			return
 		}
 		c.JSON(http.StatusExpectationFailed, "Unable to return process list")

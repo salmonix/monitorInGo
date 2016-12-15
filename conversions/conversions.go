@@ -20,6 +20,6 @@ func StringsToInt(x []string) ([]int, error) {
 }
 
 // BytesToMb returns the mb size of the input number
-func BytesToMb(b float64) float64 {
-	return b / 1048576
+func KBytesToMb(b float64) float64 {
+	return b / 1024
 }

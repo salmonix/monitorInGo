@@ -14,7 +14,7 @@ import (
 // Config the configuration struct that is initialized at first call of GetConfig
 type Config struct {
 	ScanIntervalSec   int
-	ChangeTesholdPerc float64
+	ChangeTesholdPerc uint16
 	Port              int
 	Pid               int
 	Hostname          string

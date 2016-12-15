@@ -5,7 +5,6 @@ import (
 	conv "gmon/conversions"
 	"gmon/glog"
 	"gmon/ps"
-	"math"
 	"strconv"
 	"time"
 )
@@ -16,11 +15,11 @@ type WatchedProcess struct {
 	CPU                 float64
 	Pid                 int
 	Ppid                int
-	Mem                 float64
-	VirtualSizeMb       float64
+	Mem                 uint16
+	VirtualSizeMb       uint16
 	VirtualSizePercent  float64
-	ResidentSizeMb      float64
-	ResidentSizePercent float64 // TODO: how shall I implement this?
+	ResidentSizeMb      uint16
+	ResidentSizePercent float64
 	UID                 int
 	Utime               int
 	State               string // enum: R is running, S is sleeping, D is sleeping in an uninterruptible wait, Z is zombie, T is traced or stopped
@@ -51,7 +50,7 @@ func NewWatchedProcess(pid int, ppid int) *WatchedProcess {
 }
 
 // Update returns the updated pointer using the int as treshold for changes.
-func (old *WatchedProcess) Update(new *WatchedProcess, tr float64) *WatchedProcess {
+func (old *WatchedProcess) Update(new *WatchedProcess, tr uint16) *WatchedProcess {
 	if overTreshold(old.Mem, new.Mem, tr) {
 		return new
 	}
@@ -61,8 +60,19 @@ func (old *WatchedProcess) Update(new *WatchedProcess, tr float64) *WatchedProce
 	return old
 }
 
-func overTreshold(x, y, tr float64) bool {
-	if diff := x / math.Abs(x-y); diff > tr {
+func overTreshold(x, y, tr uint16) bool {
+	diff := (x - y)
+
+	if diff < 0 {
+		diff = -diff
+	}
+
+	if diff == 0 {
+		return false
+	}
+
+	diffPerc := x / diff
+	if diffPerc > tr {
 		return true
 	}
 	return false
@@ -75,7 +85,7 @@ func (p *WatchedProcess) CastPsRow2Process(psRaw []byte) {
 	var utime string
 	c, _ := fmt.Sscan(string(psRaw), &p.Pid, &p.Cmd, &p.Ppid, &vsize, &rss, &p.CPU, &size, &uid, &utime, &p.State)
 
-	if c != 10 {
+	if c != 10 { // this is for a not-yet understood failure possibility
 		l.Warning("Not enough parameters got from psRaw:", c)
 		l.Debug("Scanned", c, "element of the 10")
 		l.Debug(string(psRaw))
@@ -84,10 +94,10 @@ func (p *WatchedProcess) CastPsRow2Process(psRaw []byte) {
 	}
 	// TODO: I need the system mem size from 0
 
-	//p.Mem =  // TODO calculate
-	p.VirtualSizeMb = conv.BytesToMb(float64(vsize))
+	p.Mem = uint16(conv.KBytesToMb(float64(size)))
+	p.VirtualSizeMb = uint16(conv.KBytesToMb(float64(vsize)))
 	// p.VirtualSizePercent =
-	p.ResidentSizeMb = conv.BytesToMb(float64(rss))
+	p.ResidentSizeMb = uint16(conv.KBytesToMb(float64(rss)))
 	// p.ResidentSizePercent // TODO calculate
 	p.UID = uid
 
