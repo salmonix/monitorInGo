@@ -50,7 +50,7 @@ func (w *WatchingContainer) Delete(p int) {
 }
 
 // Get returns the ([]struct, ok) for a watched process and true if the process exists
-// a dummy value and false if not. If pid is <0 all the processes are returned.
+// a dummy value and false if not. If pid is <0 all the processes are returned
 // XXX that might not be a good idea
 func (w *WatchingContainer) Get(p int) ([]*process.WatchedProcess, bool) {
 
