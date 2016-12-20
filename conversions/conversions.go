@@ -19,7 +19,8 @@ func StringsToInt(x []string) ([]int, error) {
 	return r, nil
 }
 
-// BytesToMb returns the mb size of the input number
-func KBytesToMb(b float64) float64 {
-	return b / 1024
+// BytesToMb returns the mb size of the input number. The max. size is
+//
+func KBytesToMb(b uint64) uint32 {
+	return uint32(b / 1024)
 }

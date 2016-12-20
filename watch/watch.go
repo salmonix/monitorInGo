@@ -17,7 +17,7 @@ var l = glog.GetLogger("watch")
 // TODO: add a watch for the system itself
 type WatchingContainer struct {
 	Processes map[int]*process.WatchedProcess
-	treshold  uint16
+	treshold  uint32
 	// system    System // TODO: add system parameters
 }
 
@@ -25,7 +25,7 @@ type WatchingContainer struct {
 var Dummy = process.NewWatchedProcess(-1, 0)
 
 // NewContainer return a new *WatchingContainer
-func NewContainer(tr uint16) *WatchingContainer {
+func NewContainer(tr uint32) *WatchingContainer {
 	processes := make(map[int]*process.WatchedProcess)
 	watch := &WatchingContainer{processes, tr}
 	watch.Add(os.Getpid(), 0)

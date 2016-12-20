@@ -11,21 +11,20 @@ import (
 
 // WatchedProcess contains the process metrics and the PID of the process
 type WatchedProcess struct {
-	Cmd                 string
-	CPU                 float64
-	Pid                 int
-	Ppid                int
-	Mem                 uint16
-	VirtualSizeMb       uint16
-	VirtualSizePercent  float64
-	ResidentSizeMb      uint16
-	ResidentSizePercent float64
-	UID                 int
-	Utime               int
-	State               string // enum: R is running, S is sleeping, D is sleeping in an uninterruptible wait, Z is zombie, T is traced or stopped
-	Checked             int
-	Children            []int
-	Tags                string // a # separated list of strings for flat custom metadata
+	Cmd            string
+	CPU            float64
+	Pid            int
+	Ppid           int
+	Mem            uint32
+	VirtualSizeMb  uint32
+	ResidentSizeMb uint32
+	UID            int
+	RegisteredAt   int32  // these both are unix ts.
+	StartedAt      int32  // might be 0 if process does not provide this info
+	State          string // enum: R is running, S is sleeping, D is sleeping in an uninterruptible wait, Z is zombie, T is traced or stopped
+	Checked        int
+	Children       []int
+	Tags           string // a # separated list of strings for flat custom metadata
 }
 
 var l = glog.GetLogger("watch")
@@ -46,11 +45,12 @@ func NewWatchedProcess(pid int, ppid int) *WatchedProcess {
 	}
 
 	newProcess.CastPsRow2Process(psRaw)
+	newProcess.RegisteredAt = int32(time.Now().Unix())
 	return newProcess
 }
 
 // Update returns the updated pointer using the int as treshold for changes.
-func (old *WatchedProcess) Update(new *WatchedProcess, tr uint16) *WatchedProcess {
+func (old *WatchedProcess) Update(new *WatchedProcess, tr uint32) *WatchedProcess {
 	if overTreshold(old.Mem, new.Mem, tr) {
 		return new
 	}
@@ -60,7 +60,7 @@ func (old *WatchedProcess) Update(new *WatchedProcess, tr uint16) *WatchedProces
 	return old
 }
 
-func overTreshold(x, y, tr uint16) bool {
+func overTreshold(x, y, tr uint32) bool {
 	diff := (x - y)
 
 	if diff < 0 {
@@ -81,11 +81,11 @@ func overTreshold(x, y, tr uint16) bool {
 // CastPsRow2Process casts the row from the ps output into the process struct.
 func (p *WatchedProcess) CastPsRow2Process(psRaw []byte) {
 
-	var vsize, rss, size, uid int
-	var utime string
-	c, _ := fmt.Sscan(string(psRaw), &p.Pid, &p.Cmd, &p.Ppid, &vsize, &rss, &p.CPU, &size, &uid, &utime, &p.State)
+	var uid int
+	var vsize, size, rss uint64
+	c, _ := fmt.Sscan(string(psRaw), &p.Pid, &p.Cmd, &p.Ppid, &vsize, &rss, &p.CPU, &size, &uid, &p.State)
 
-	if c != 10 { // this is for a not-yet understood failure possibility
+	if c != 9 { // this is for a not-yet understood failure possibility
 		l.Warning("Not enough parameters got from psRaw:", c)
 		l.Debug("Scanned", c, "element of the 10")
 		l.Debug(string(psRaw))
@@ -94,19 +94,13 @@ func (p *WatchedProcess) CastPsRow2Process(psRaw []byte) {
 	}
 	// TODO: I need the system mem size from 0
 
-	p.Mem = uint16(conv.KBytesToMb(float64(size)))
-	p.VirtualSizeMb = uint16(conv.KBytesToMb(float64(vsize)))
+	p.Mem = conv.KBytesToMb(size)
+	p.VirtualSizeMb = conv.KBytesToMb(vsize)
 	// p.VirtualSizePercent =
-	p.ResidentSizeMb = uint16(conv.KBytesToMb(float64(rss)))
-	// p.ResidentSizePercent // TODO calculate
+	p.ResidentSizeMb = conv.KBytesToMb(rss)
+	// p.ResidentSizePercent
 	p.UID = uid
 
-	if uT, err := time.Parse("00:00:00", utime); err == nil {
-		p.Utime = int(uT.Unix())
-	} else {
-		p.Utime = -1
-	}
-
-	// Checked = int // TODO: not implemented
-	// Children =  []int // TODO: not implemented
+	// Checked = int
+	// Children =  []int
 }

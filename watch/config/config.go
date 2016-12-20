@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/capnm/sysinfo"
+	conv "gmon/conversions"
 	"io/ioutil"
 	"net"
 	"os"
@@ -14,12 +16,13 @@ import (
 // Config the configuration struct that is initialized at first call of GetConfig
 type Config struct {
 	ScanIntervalSec   int
-	ChangeTesholdPerc uint16
+	ChangeTesholdPerc uint32
 	Port              int
 	Pid               int
 	Hostname          string
 	HostIP            []*net.IPNet
-	StartTime         int32
+	StartTime         uint32
+	TotalRamMb        uint32
 	// Overseer []string
 }
 
@@ -55,7 +58,9 @@ func GetConfig() Config {
 	conf.Pid = os.Getpid()
 	conf.Hostname, _ = os.Hostname()
 	conf.HostIP, _ = getIps()
-	conf.StartTime = int32(time.Now().Unix())
+	conf.StartTime = uint32(time.Now().Unix())
+	sysInf := sysinfo.Get()
+	conf.TotalRamMb = conv.KBytesToMb(sysInf.TotalRam)
 
 	if conf.ScanIntervalSec == 0 {
 		conf.ScanIntervalSec = 15

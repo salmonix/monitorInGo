@@ -9,7 +9,7 @@ import (
 // it will not going to cause problem to call the C ps in every x seconds on a mem fs.
 
 // PsString are the parameters we read from the ps command
-var PsString = "pid,cmd,ppid,vsize,rss,pcpu,size,uid,etime,state"
+var PsString = "pid,cmd,ppid,vsize,rss,pcpu,size,uid,state"
 
 // GetProcessTable calls ps with or without the pid parameter
 // returning the output as []byte.
